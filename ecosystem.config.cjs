@@ -9,8 +9,7 @@ module.exports = {
       max_memory_restart: "500M",
       env_production: {
         NODE_ENV: "production",
-        PORT: 80,
-        // IPTV Settings
+        PORT: 3000,
         IPTV_BASE_URL: "http://mzbrxgwh.saifdns.com",
         IPTV_USERNAME: "JVC3H3LW",
         IPTV_PASSWORD: "DFYXG4N1",
