@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+pnpm workspace monorepo using TypeScript. StreamTV — موقع أفلام ومسلسلات وبث مباشر عبر IPTV.
 
 ## Stack
 
@@ -15,82 +15,62 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
+- **Frontend**: React + Vite + Tailwind CSS + Framer Motion
+- **Video**: hls.js (HLS streaming), native HTML5 video
+- **IPTV**: Xtream Codes API compatible
 
 ## Structure
 
 ```text
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
+│   ├── api-server/         # Express API server + IPTV proxy routes
+│   └── streamtv/           # React frontend — Movies, Series, Live TV
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
+├── deploy.sh               # VPS deployment script
+├── ecosystem.config.cjs    # PM2 config for production
+├── VPS_DEPLOY.md           # دليل النشر على VPS
 └── package.json            # Root package with hoisted devDeps
 ```
 
-## TypeScript & Composite Projects
+## IPTV Config
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+| Setting | Value |
+|---------|-------|
+| Username | JVC3H3LW |
+| Password | DFYXG4N1 |
+| DNS 1 | http://mzbrxgwh.saifdns.com |
+| DNS 2 | http://mzbrxgwh.yangsmart.com |
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+Backend will try DNS 1 first, then fall back to DNS 2.
 
-## Root Scripts
+## StreamTV Pages
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+- `/` — الرئيسية: Hero + carousels (أفلام، مسلسلات، قنوات)
+- `/movies` — الأفلام: grid + filter by category + search + pagination
+- `/series` — المسلسلات: grid + filter + search + pagination
+- `/series/:id` — تفاصيل المسلسل: معلومات + حلقات مقسمة بالموسم
+- `/live` — البث المباشر: grid قنوات مع LIVE badge
+- `/play/:type/:id` — المشغل: HLS + MP4 + fullscreen (iOS + Android + Desktop)
 
-## Packages
+## API Routes
 
-### `artifacts/api-server` (`@workspace/api-server`)
+All proxied through `/api/iptv/*`:
+- `GET /api/iptv/channels` — قنوات البث المباشر
+- `GET /api/iptv/movies` — الأفلام (دعم: category_id, search, page)
+- `GET /api/iptv/series` — المسلسلات
+- `GET /api/iptv/categories?type=live|movie|series` — التصنيفات
+- `GET /api/iptv/stream-url?type=live|movie|series&id=...` — رابط البث
+- `GET /api/iptv/series-info?series_id=...` — معلومات + حلقات المسلسل
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+## VPS Deployment (HTTP)
 
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+```bash
+chmod +x deploy.sh && sudo ./deploy.sh
+```
 
-### `lib/db` (`@workspace/db`)
-
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
-
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
-
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+يشغل السيرفر على المنفذ 80 عبر HTTP مباشرة. راجع `VPS_DEPLOY.md` للتفاصيل.

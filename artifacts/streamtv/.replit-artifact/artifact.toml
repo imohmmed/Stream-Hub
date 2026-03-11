@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "StreamTV - أفلام ومسلسلات وبث مباشر"
+version = "1.0.0"
+id = "artifacts/streamtv"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 20841
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/streamtv run dev"
+
+[services.env]
+PORT = "20841"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/streamtv", "run", "build"]
+publicDir = "artifacts/streamtv/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"

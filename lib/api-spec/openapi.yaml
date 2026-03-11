@@ -1,22 +1,22 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: StreamTV API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: iptv
+    description: IPTV operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +24,167 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /iptv/channels:
+    get:
+      operationId: getChannels
+      tags: [iptv]
+      summary: Get live channels
+      responses:
+        "200":
+          description: List of channels
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  channels:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Channel"
+                required:
+                  - channels
+  /iptv/movies:
+    get:
+      operationId: getMovies
+      tags: [iptv]
+      summary: Get movies
+      parameters:
+        - name: category_id
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of movies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  movies:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Movie"
+                  total:
+                    type: integer
+                required:
+                  - movies
+                  - total
+  /iptv/series:
+    get:
+      operationId: getSeries
+      tags: [iptv]
+      summary: Get series
+      parameters:
+        - name: category_id
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of series
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  series:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Series"
+                  total:
+                    type: integer
+                required:
+                  - series
+                  - total
+  /iptv/categories:
+    get:
+      operationId: getCategories
+      tags: [iptv]
+      summary: Get categories
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [live, movie, series]
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Category"
+                required:
+                  - categories
+  /iptv/stream-url:
+    get:
+      operationId: getStreamUrl
+      tags: [iptv]
+      summary: Get stream URL for a content item
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [live, movie, series]
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: episode_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stream URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamUrl"
+  /iptv/series-info:
+    get:
+      operationId: getSeriesInfo
+      tags: [iptv]
+      summary: Get series info with episodes
+      parameters:
+        - name: series_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Series info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeriesInfo"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +194,117 @@ components:
           type: string
       required:
         - status
-
+    Channel:
+      type: object
+      properties:
+        stream_id:
+          type: string
+        name:
+          type: string
+        stream_icon:
+          type: string
+        category_id:
+          type: string
+        epg_channel_id:
+          type: string
+      required:
+        - stream_id
+        - name
+    Movie:
+      type: object
+      properties:
+        stream_id:
+          type: string
+        name:
+          type: string
+        stream_icon:
+          type: string
+        category_id:
+          type: string
+        rating:
+          type: string
+        plot:
+          type: string
+        genre:
+          type: string
+        release_date:
+          type: string
+        duration:
+          type: string
+        added:
+          type: string
+      required:
+        - stream_id
+        - name
+    Series:
+      type: object
+      properties:
+        series_id:
+          type: string
+        name:
+          type: string
+        cover:
+          type: string
+        category_id:
+          type: string
+        rating:
+          type: string
+        plot:
+          type: string
+        genre:
+          type: string
+        releaseDate:
+          type: string
+      required:
+        - series_id
+        - name
+    Category:
+      type: object
+      properties:
+        category_id:
+          type: string
+        category_name:
+          type: string
+      required:
+        - category_id
+        - category_name
+    StreamUrl:
+      type: object
+      properties:
+        url:
+          type: string
+        type:
+          type: string
+      required:
+        - url
+        - type
+    SeriesInfo:
+      type: object
+      properties:
+        info:
+          $ref: "#/components/schemas/Series"
+        episodes:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: "#/components/schemas/Episode"
+      required:
+        - info
+        - episodes
+    Episode:
+      type: object
+      properties:
+        id:
+          type: string
+        episode_num:
+          type: integer
+        title:
+          type: string
+        season:
+          type: integer
+      required:
+        - id
+        - episode_num
+        - title
+        - season

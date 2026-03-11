@@ -1,0 +1,18 @@
+packages:
+  "hls.js": "Required for streaming m3u8 IPTV video formats"
+  "embla-carousel-react": "For smooth, Netflix-style horizontal content scrolling"
+  "framer-motion": "For cinematic page transitions and high-quality micro-interactions"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to merge Tailwind classes without conflicts"
+
+images:
+  - path: "artifacts/streamtv/public/images/hero-fallback.png"
+    description: "Dark, cinematic, abstract gradient background with deep reds and blacks, suitable for a streaming app hero section placeholder"
+    aspect_ratio: "16:9"
+  - path: "artifacts/streamtv/public/images/poster-placeholder.png"
+    description: "Minimalist dark gray placeholder for a movie poster with a subtle geometric pattern"
+    aspect_ratio: "3:4"
+
+notes:
+  - RTL language support (Arabic) is implemented via CSS direction.
+  - API endpoints return URLs that might be HTTP. User will deploy on HTTP VPS to avoid mixed content.

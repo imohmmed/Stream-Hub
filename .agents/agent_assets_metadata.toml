@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "CiugdCXU6NqgWcwdGo44H"
+uri = "file://VPS_DEPLOY.md"
+type = "text"
+title = "دليل النشر على VPS"
